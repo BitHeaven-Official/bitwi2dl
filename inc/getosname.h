@@ -1,3 +1,6 @@
+#ifndef BITWI2DL_GETOSNAME_H
+#define BITWI2DL_GETOSNAME_H
+
 #include <string>
 
 std::string getOsName() {
@@ -17,3 +20,5 @@ std::string getOsName() {
         return "other";
     #endif
 }
+
+#endif
