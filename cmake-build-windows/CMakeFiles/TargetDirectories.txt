@@ -1,4 +1,0 @@
-/home/bitheaven/CLionProjects/bitwi2dl/cmake-build-windows/CMakeFiles/edit_cache.dir
-/home/bitheaven/CLionProjects/bitwi2dl/cmake-build-windows/CMakeFiles/rebuild_cache.dir
-/home/bitheaven/CLionProjects/bitwi2dl/cmake-build-windows/CMakeFiles/bitwi2dl.dir
-/home/bitheaven/CLionProjects/bitwi2dl/cmake-build-windows/CMakeFiles/bitwi2dl.exe.dir

@@ -1,4 +1,0 @@
-/home/bitheaven/Documents/clion-2021.3/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM=/home/bitheaven/Documents/clion-2021.3/bin/ninja/linux/ninja -DCMAKE_C_COMPILER=/usr/bin/x86_64-w64-mingw32-gcc-win32 -DCMAKE_CXX_COMPILER=/usr/bin/x86_64-w64-mingw32-c++-win32 -G Ninja /home/bitheaven/CLionProjects/bitwi2dl
--- Configuring done
--- Generating done
--- Build files have been written to: /home/bitheaven/CLionProjects/bitwi2dl/cmake-build-windows
