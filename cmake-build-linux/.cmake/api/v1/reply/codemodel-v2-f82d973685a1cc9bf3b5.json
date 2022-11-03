@@ -1,0 +1,69 @@
+{
+	"configurations" : 
+	[
+		{
+			"directories" : 
+			[
+				{
+					"build" : ".",
+					"jsonFile" : "directory-.-Release-f5ebdc15457944623624.json",
+					"minimumCMakeVersion" : 
+					{
+						"string" : "3.21"
+					},
+					"projectIndex" : 0,
+					"source" : ".",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				}
+			],
+			"name" : "Release",
+			"projects" : 
+			[
+				{
+					"directoryIndexes" : 
+					[
+						0
+					],
+					"name" : "botnet_client",
+					"targetIndexes" : 
+					[
+						0,
+						1
+					]
+				}
+			],
+			"targets" : 
+			[
+				{
+					"directoryIndex" : 0,
+					"id" : "bitwi2dl::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-bitwi2dl-Release-c678fd64cea28ae36c1b.json",
+					"name" : "bitwi2dl",
+					"projectIndex" : 0
+				},
+				{
+					"directoryIndex" : 0,
+					"id" : "bitwi2dl.exe::@6890427a1f51a3e7e1df",
+					"jsonFile" : "target-bitwi2dl.exe-Release-4ae5b26f1d00a1aa451a.json",
+					"name" : "bitwi2dl.exe",
+					"projectIndex" : 0
+				}
+			]
+		}
+	],
+	"kind" : "codemodel",
+	"paths" : 
+	{
+		"build" : "/home/bitheaven/CLionProjects/bitwi2dl/cmake-build-linux",
+		"source" : "/home/bitheaven/CLionProjects/bitwi2dl"
+	},
+	"version" : 
+	{
+		"major" : 2,
+		"minor" : 3
+	}
+}
