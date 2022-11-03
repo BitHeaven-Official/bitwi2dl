@@ -1,4 +1,0 @@
-/home/bitheaven/Documents/clion-2021.3/bin/cmake/linux/bin/cmake -DCMAKE_BUILD_TYPE=Release -DCMAKE_MAKE_PROGRAM=/home/bitheaven/Documents/clion-2021.3/bin/ninja/linux/ninja -G Ninja /home/bitheaven/CLionProjects/bitwi2dl
--- Configuring done
--- Generating done
--- Build files have been written to: /home/bitheaven/CLionProjects/bitwi2dl/cmake-build-linux
