@@ -187,6 +187,11 @@ void downloadFile(char* URL, char* filename) {
     }
 }
 
+inline bool fileExists (const char* name) {
+    struct stat buffer;
+    return (stat (name, &buffer) == 0);
+}
+
 void dlThread(char* URL, char* filename) {
 
 }
@@ -243,7 +248,13 @@ void userThread(char* username) {
                 LOG("Skip thumbnail");
                 continue;
             }
+
             strcpy(filename, ((string)OUTPATH + "/" + ((string)filename)).c_str());
+
+            if(fileExists(filename)) {
+                LOG("File exists, skipping");
+                continue;
+            }
             LOG("Filename: " << filename);
             LOG("Download: " << mediaUrl);
             downloadFile(mediaUrl, filename);
