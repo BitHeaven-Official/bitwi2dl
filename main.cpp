@@ -4,6 +4,8 @@
 #include <thread>
 #include <unistd.h>
 #include <sys/stat.h>
+#include <future>
+#include <chrono>
 
 #include "inc/getosname.h"
 #include "inc/json.hpp"
@@ -28,8 +30,7 @@ static char* USER = new char[255];
 static char* FRITTER = new char[255];
 static char* OUTPATH = new char[255];
 static int THREADS = 1;
-static int ACTIVE_THREADS = 0;
-static int TWEETS_PER_PAGE = 200;
+static int ACTIVE_THEADS = 0;
 
 
 static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
@@ -193,11 +194,15 @@ inline bool fileExists (const char* name) {
 }
 
 void dlThread(char* URL, char* filename) {
-
+    ACTIVE_THEADS++;
+    downloadFile(URL, filename);
+    LOG("End thread");
+    ACTIVE_THEADS--;
 }
 
 void userThread(char* username) {
     char* guestToken = twiAuth();
+    vector<future<void>> tasks;
 
     json profile = getProfile(guestToken, username);
 
@@ -212,10 +217,13 @@ void userThread(char* username) {
     int bitrate;
     char* mediaUrl = new char[255];
     char filename[FILENAME_MAX];
+    bool checkFreeThread;
     for (json::iterator it = tweets.begin(); it != tweets.end(); ++it) {
         tweet = (*it)["extended_entities"]["media"];
 
         for (json::iterator jt = tweet.begin(); jt != tweet.end(); ++jt) {
+            LOG("-- MEDIA START");
+
             if(strstr(((string)((*jt)["type"])).c_str(), "video")) {
                 bitrate = 0;
 
@@ -255,9 +263,21 @@ void userThread(char* username) {
                 LOG("File exists, skipping");
                 continue;
             }
-            LOG("Filename: " << filename);
-            LOG("Download: " << mediaUrl);
-            downloadFile(mediaUrl, filename);
+
+//            checkFreeThread = 1;
+            while(1) {
+                if(ACTIVE_THEADS < THREADS) {
+                    LOG("Filename: " << filename);
+                    LOG("Download: " << mediaUrl);
+                    tasks.push_back(async(dlThread, mediaUrl, filename));
+                    break;
+                }
+                LOG("Threads: " << ACTIVE_THEADS << "/" << THREADS);
+
+                sleep(1);
+            }
+
+            LOG("-- MEDIA END");
         }
     }
 }
@@ -265,7 +285,6 @@ void userThread(char* username) {
 void mainThread() {
     char* buf = new char[255];
     thread userThreads[THREADS];
-    thread dlThreads[THREADS];
 
     userThreads[0] = thread(userThread, USER);
     userThreads[0].join();
