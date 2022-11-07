@@ -8,6 +8,6 @@ ninja -C build
 ```
 
 ### Install
-```
+```bash
 ninja -C build install
 ```
