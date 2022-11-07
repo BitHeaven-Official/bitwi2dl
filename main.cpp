@@ -174,15 +174,16 @@ void none() {
 void downloadFile(char* URL, char* filename) {
     CURL *curl;
     FILE *fp;
-    CURLcode res;
     curl = curl_easy_init();
+    LOG("CURL Filename: " << filename);
+    LOG("CURL Download: " << URL);
     if (curl)
     {
         fp = fopen(filename, "wb");
         curl_easy_setopt(curl, CURLOPT_URL, URL);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-        res = curl_easy_perform(curl);
+        curl_easy_perform(curl);
         curl_easy_cleanup(curl);
         fclose(fp);
     }
@@ -193,9 +194,11 @@ inline bool fileExists (const char* name) {
     return (stat (name, &buffer) == 0);
 }
 
-void dlThread(char* URL, char* filename) {
+void dlThread(string URL, string filename) {
     ACTIVE_THEADS++;
-    downloadFile(URL, filename);
+    char* iFilename = (char*)filename.c_str();
+    char* iURL = (char*)URL.c_str();
+    downloadFile(iURL, iFilename);
     LOG("End thread");
     ACTIVE_THEADS--;
 }
@@ -222,8 +225,6 @@ void userThread(char* username) {
         tweet = (*it)["extended_entities"]["media"];
 
         for (json::iterator jt = tweet.begin(); jt != tweet.end(); ++jt) {
-            LOG("-- MEDIA START");
-
             if(strstr(((string)((*jt)["type"])).c_str(), "video")) {
                 bitrate = 0;
 
@@ -264,20 +265,19 @@ void userThread(char* username) {
                 continue;
             }
 
-//            checkFreeThread = 1;
+            checkFreeThread = 1;
             while(1) {
+                this_thread::sleep_for(chrono::milliseconds(100));
+                LOG("Threads: " << ACTIVE_THEADS << "/" << THREADS);
+
                 if(ACTIVE_THEADS < THREADS) {
                     LOG("Filename: " << filename);
                     LOG("Download: " << mediaUrl);
-                    tasks.push_back(async(dlThread, mediaUrl, filename));
+                    tasks.push_back(async(dlThread, (string)mediaUrl, (string)filename));
+                    checkFreeThread = 0;
                     break;
                 }
-                LOG("Threads: " << ACTIVE_THEADS << "/" << THREADS);
-
-                sleep(1);
             }
-
-            LOG("-- MEDIA END");
         }
     }
 }
