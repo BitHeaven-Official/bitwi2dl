@@ -175,8 +175,6 @@ void downloadFile(char* URL, char* filename) {
     CURL *curl;
     FILE *fp;
     curl = curl_easy_init();
-    LOG("CURL Filename: " << filename);
-    LOG("CURL Download: " << URL);
     if (curl)
     {
         fp = fopen(filename, "wb");
@@ -220,7 +218,6 @@ void userThread(char* username) {
     int bitrate;
     char* mediaUrl = new char[255];
     char filename[FILENAME_MAX];
-    bool checkFreeThread;
     for (json::iterator it = tweets.begin(); it != tweets.end(); ++it) {
         tweet = (*it)["extended_entities"]["media"];
 
@@ -265,25 +262,24 @@ void userThread(char* username) {
                 continue;
             }
 
-            checkFreeThread = 1;
             while(1) {
-                this_thread::sleep_for(chrono::milliseconds(100));
+                this_thread::sleep_for(chrono::milliseconds(10));
                 LOG("Threads: " << ACTIVE_THEADS << "/" << THREADS);
 
                 if(ACTIVE_THEADS < THREADS) {
                     LOG("Filename: " << filename);
                     LOG("Download: " << mediaUrl);
                     tasks.push_back(async(dlThread, (string)mediaUrl, (string)filename));
-                    checkFreeThread = 0;
                     break;
                 }
             }
         }
     }
+
+    return;
 }
 
 void mainThread() {
-    char* buf = new char[255];
     thread userThreads[THREADS];
 
     userThreads[0] = thread(userThread, USER);
@@ -342,7 +338,7 @@ int main(int argc, char **argv) {
     LOG("Fritter: " << FRITTER);
     LOG("Outpath: " << OUTPATH);
 
-    if(!USER && !FRITTER)
+    if(!strcmp(USER, "") && !strcmp(FRITTER, ""))
         help();
 
     LOG("System: " << os);
