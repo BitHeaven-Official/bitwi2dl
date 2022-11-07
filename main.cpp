@@ -6,18 +6,14 @@
 #include <sys/stat.h>
 #include <future>
 #include <chrono>
+#include <fstream>
 
 #include "inc/getosname.h"
 #include "inc/json.hpp"
 
-#if 1
 #define LOG(x) cout << "[INFO] " << x << endl
 #define CURLRES(x, y) cout << "-- result" << endl << x << endl << y << endl << "-- end result" << endl
-#else
-#define LOG(x) ((void)0)
-#define CURLRES(x, y) ((void)0)
-#endif
-#define ERR(x) cerr << "[ERROR] " << x << endl
+#define ERR(x) cout << "\033[1;31m" << "[ERROR] " << x << "\033[0m" << endl
 #define DEBUG 0
 
 
@@ -30,7 +26,9 @@ static char* USER = new char[255];
 static char* FRITTER = new char[255];
 static char* OUTPATH = new char[255];
 static int THREADS = 1;
-static int ACTIVE_THEADS = 0;
+static int ACTIVE_THREADS = 0;
+static int USER_THREADS = 0;
+
 
 
 static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
@@ -79,12 +77,26 @@ char* twiAuth() {
 
     curlBase(curl, twitterApi, headers, readBuffer, res, httpCode);
     LOG("Buffer: " << readBuffer);
+
     json j = json::parse(readBuffer);
+
+    if(j["errors"].is_array()) {
+        ERR(j["errors"][0]["message"]);
+        exit(1);
+    }
+
     string jstr = j["guest_token"];
     char* out = new char[512];
     strcpy(out, jstr.c_str());
 
     return out;
+}
+
+void getLoad() {
+    while(1) {
+        this_thread::sleep_for(chrono::milliseconds(500));
+        LOG("Threads: " << ACTIVE_THREADS << "/" << THREADS);
+    }
 }
 
 json getProfile(char* guestToken, char* username) {
@@ -106,6 +118,11 @@ json getProfile(char* guestToken, char* username) {
 
     json j = json::parse(readBuffer);
 
+    if(j["errors"].is_array()) {
+        ERR(j["errors"][0]["message"]);
+        exit(1);
+    }
+
     LOG("User RestID: " << j["data"]["user"]["rest_id"]);
     LOG("User Tweets: " << j["data"]["user"]["legacy"]["statuses_count"]);
 
@@ -121,9 +138,10 @@ json getTweets(char* guestToken, char* userId, int count) {
     char* twitterApi = new char[512];
     strcpy(twitterApi, (
             "https://api.twitter.com/2/timeline/profile/" + (string)userId
+//            + ".json?count=50000"
             + ".json?count=" + to_string(count)
-//            + "&userId=" + (string)userId
-//            + "&cursor=" + to_string(offset)
+            + "&userId=" + (string)userId
+//            + "&cursor=50"
             ).c_str());
     LOG(twitterApi);
     struct curl_slist* headers = NULL;
@@ -139,6 +157,12 @@ json getTweets(char* guestToken, char* userId, int count) {
     curlBase(curl, twitterApi, headers, readBuffer, res, httpCode);
 
     json out = json::parse(readBuffer);
+
+    if(out["errors"].is_array()) {
+        ERR(out["errors"][0]["message"]);
+        exit(1);
+    }
+
     out = out["globalObjects"]["tweets"];
 //    json j2;
 //    int cntr = 0;
@@ -161,7 +185,7 @@ void help() {
     cout << "Usage: bitwi2dl <args>" << endl;
     cout << "   -h                  Help" << endl;
     cout << "   -u <username>       Twitter user" << endl;
-//    cout << "   -f <filepath>       Fritter json subs" << endl;
+    cout << "   -f <filepath>       Fritter json subs" << endl;
     cout << "   -t <int>            Count of threads (Default: 1)" << endl;
     cout << "   -o <path>           Output dir (Default: ./twitter)" << endl;
     exit(0);
@@ -193,23 +217,30 @@ inline bool fileExists (const char* name) {
 }
 
 void dlThread(string URL, string filename) {
-    ACTIVE_THEADS++;
     char* iFilename = (char*)filename.c_str();
     char* iURL = (char*)URL.c_str();
     downloadFile(iURL, iFilename);
     LOG("End thread");
-    ACTIVE_THEADS--;
+    ACTIVE_THREADS--;
 }
 
-void userThread(char* username) {
+void userThread(string sUsername) {
     char* guestToken = twiAuth();
     vector<future<void>> tasks;
 
+    char* username = (char*)sUsername.c_str();
     json profile = getProfile(guestToken, username);
+
+    mkdir((char*)((string)OUTPATH + "/" + (string)username).c_str(), 0777);
 
     string sUserId = profile["user_id"];
     char* userId = (char*)sUserId.c_str();
     int tweetsCount = (int)profile["tweets"];
+
+    if(!tweetsCount) {
+        ERR("User " << username << " no have tweets!");
+        return;
+    }
 
     json tweets;
     tweets = getTweets(guestToken, (char*)userId, tweetsCount);
@@ -220,6 +251,8 @@ void userThread(char* username) {
     char filename[FILENAME_MAX];
     for (json::iterator it = tweets.begin(); it != tweets.end(); ++it) {
         tweet = (*it)["extended_entities"]["media"];
+
+        LOG((*it)["id_str"]);
 
         for (json::iterator jt = tweet.begin(); jt != tweet.end(); ++jt) {
             if(strstr(((string)((*jt)["type"])).c_str(), "video")) {
@@ -255,7 +288,7 @@ void userThread(char* username) {
                 continue;
             }
 
-            strcpy(filename, ((string)OUTPATH + "/" + ((string)filename)).c_str());
+            strcpy(filename, ((string)OUTPATH + "/" + (string)username + "/" + ((string)filename)).c_str());
 
             if(fileExists(filename)) {
                 LOG("File exists, skipping");
@@ -264,11 +297,11 @@ void userThread(char* username) {
 
             while(1) {
                 this_thread::sleep_for(chrono::milliseconds(10));
-                LOG("Threads: " << ACTIVE_THEADS << "/" << THREADS);
 
-                if(ACTIVE_THEADS < THREADS) {
+                if(ACTIVE_THREADS < THREADS) {
                     LOG("Filename: " << filename);
                     LOG("Download: " << mediaUrl);
+                    ACTIVE_THREADS++;
                     tasks.push_back(async(dlThread, (string)mediaUrl, (string)filename));
                     break;
                 }
@@ -276,26 +309,42 @@ void userThread(char* username) {
         }
     }
 
+    USER_THREADS--;
     return;
 }
 
 void mainThread() {
-    thread userThreads[THREADS];
+    auto load = async(getLoad);
 
-    userThreads[0] = thread(userThread, USER);
-    userThreads[0].join();
+    if(strcmp(FRITTER, "")) {
+        ifstream fritter(FRITTER);
+        vector<future<void>> tasks;
+        json jFritter;
+        fritter >> jFritter;
+        char* username = new char[32];
 
-//    for(int i = 0; THREADS > i; i++) {
-//        LOG("---------------- THREAD " << i);
-//
-//    }
-//    for(int i = 0; THREADS > i; i++) {
-//    }
+        jFritter = jFritter["subscriptions"];
 
-//    char* tweets = new char[30];
-//    getProfile(buf, tweets, guestToken, USER);
-//    getTweets(buf, guestToken, buf, tweets);
-//    LOG("Buffer: " << buf);
+        for (json::iterator it = jFritter.begin(); it != jFritter.end(); ++it) {
+            strcpy(username, ((string)((*it)["screen_name"])).c_str());
+
+            while(1) {
+                if(USER_THREADS < THREADS) {
+                    LOG("Username: " << username);
+                    USER_THREADS++;
+                    tasks.push_back(async(userThread, (string)username));
+
+                    this_thread::sleep_for(chrono::milliseconds(10000));
+                    break;
+                }
+            }
+        }
+    }
+    else {
+        userThread((string)USER);
+    }
+
+    return;
 }
 
 int main(int argc, char **argv) {
