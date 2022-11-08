@@ -3,11 +3,10 @@ Twitter media parser
 
 ### Build
 ```bash
-cmake -DCMAKE_BUILD_TYPE=Release -G Ninja
-ninja -C build
+g++-10 -o bitwi2dl main.cpp inc/getosname.h inc/json.hpp -static-libgcc -static-libstdc++ -lcurl -pthread
 ```
 
-### Install
+### Use
 ```bash
-ninja -C build install
+./bitwi2dl
 ```
