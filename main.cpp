@@ -157,7 +157,6 @@ json getTweets(char* guestToken, char* userId, int count, string sCursor = "") {
     }
     else {
         curCount = 0;
-        useCount -= 50;
     }
 
     if(strcmp(cursor, "") != 0) {
