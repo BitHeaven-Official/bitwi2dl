@@ -1,5 +1,5 @@
 cmake_minimum_required(VERSION 3.21)
-project(botnet_client)
+project(bitwi2dl)
 
 set(CMAKE_CXX_STANDARD 23)
 
