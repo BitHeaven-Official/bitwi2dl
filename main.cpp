@@ -305,7 +305,7 @@ void userThread(string sUsername) {
                     strcpy(filename, mediaUrl);
                     reverse(mediaUrl, mediaUrl + strlen(mediaUrl));
 
-                    strcpy(filename, strstr(filename, "4"));
+                    strcpy(filename, strstr(filename, "4pm"));
                     strcpy(filename, ((string)filename).substr(0, ((string)filename).find("/", 0)).c_str());
                     reverse(filename, filename + strlen(filename));
                 }
