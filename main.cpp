@@ -345,7 +345,7 @@ void userThread(string sUsername) {
             }
         }
 
-        tweets = getTweets(guestToken, (char*)userId, tweetsCount, (string)cursor);
+        tweets = getTweets(guestToken, (char*)userId, totalCount, (string)cursor);
         totalCount = (int)tweets["count"];
         strcpy(cursor, ((string)tweets["cursor"]).c_str());
         tweets = tweets["tweets"];
