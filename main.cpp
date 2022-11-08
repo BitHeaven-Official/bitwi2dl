@@ -386,7 +386,6 @@ void mainThread() {
             while(1) {
                 this_thread::sleep_for(chrono::milliseconds(10));
 
-                LOG("Wait");
                 if(USER_THREADS < THREADS) {
                     LOG("Username: " << username);
                     USER_THREADS++;
