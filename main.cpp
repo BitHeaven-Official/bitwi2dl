@@ -134,14 +134,31 @@ json getProfile(char* guestToken, char* username) {
     return out;
 }
 
-json getTweets(char* guestToken, char* userId, int count) {
+json getTweets(char* guestToken, char* userId, int count, string sCursor = "") {
     char* twitterApi = new char[512];
+    char* cursor = new char[32];
+    strcpy(cursor, sCursor.c_str());
+    LOG("Cursor: " << cursor);
+
+    int curCount = count;
+    int useCount = curCount;
+    if(curCount > 200) {
+        useCount = 200;
+        curCount -= 200;
+    }
+    else {
+        curCount = 0;
+    }
+
+    if(strcmp(cursor, "") != 0) {
+        strcpy(cursor, ("&cursor=" + (string)cursor).c_str());
+    }
+
     strcpy(twitterApi, (
             "https://api.twitter.com/2/timeline/profile/" + (string)userId
-//            + ".json?count=50000"
-            + ".json?count=" + to_string(count)
+            + ".json?count=" + to_string(useCount)
             + "&userId=" + (string)userId
-//            + "&cursor=50"
+            + (string)cursor
             ).c_str());
     LOG(twitterApi);
     struct curl_slist* headers = NULL;
@@ -163,20 +180,34 @@ json getTweets(char* guestToken, char* userId, int count) {
         exit(1);
     }
 
-    out = out["globalObjects"]["tweets"];
-//    json j2;
-//    int cntr = 0;
-//    for (json::iterator it = j.begin(); it != j.end(); ++it) {
-//        j2 = (*it)["entities"]["media"];
-//        cntr++;
-//
-//        for (json::iterator jt = j2.begin(); jt != j2.end(); ++jt) {
-//            LOG("Tweet: " << (*jt)["id_str"]);
-//            string jstr = (*jt)["id_str"];
-//            strcpy(out, jstr.c_str());
-//        }
-//    }
-//    LOG("Count: " << cntr);
+    for (json::iterator it = out["timeline"]["instructions"].begin(); it != out["timeline"]["instructions"].end(); ++it) {
+
+        for (json::iterator jt = (*it).begin(); jt != (*it).end(); ++jt) {
+            if((*jt)["addEntries"].is_array()) {
+
+                for (json::iterator kt = (*jt)["addEntries"]["entries"].begin(); kt != (*jt)["addEntries"]["entries"].end(); ++kt) {
+                    if((*kt)["content"]["operation"]["cursor"]["cursorType"].is_string()) {
+                        if(!((string)(*kt)["content"]["operation"]["cursor"]["cursorType"]).compare("Bottom")) {
+                            sCursor = (*kt)["content"]["operation"]["cursor"]["value"];
+                        }
+                    }
+                }
+            }
+            else if((*jt)["entries"].is_array()) {
+                for (json::iterator kt = (*jt)["entries"].begin(); kt != (*jt)["entries"].end(); ++kt) {
+                    if((*kt)["content"]["operation"]["cursor"]["cursorType"].is_string()) {
+                        if(!((string)(*kt)["content"]["operation"]["cursor"]["cursorType"]).compare("Bottom")) {
+                            sCursor = (*kt)["content"]["operation"]["cursor"]["value"];
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    out = out["globalObjects"];
+    out["count"] = curCount;
+    out["cursor"] = (string)sCursor;
 
     return out;
 }
@@ -245,68 +276,79 @@ void userThread(string sUsername) {
     json tweets;
     tweets = getTweets(guestToken, (char*)userId, tweetsCount);
 
-    json tweet, videoTweet, videoBitrates;
-    int bitrate;
-    char* mediaUrl = new char[255];
-    char filename[FILENAME_MAX];
-    for (json::iterator it = tweets.begin(); it != tweets.end(); ++it) {
-        tweet = (*it)["extended_entities"]["media"];
+    int totalCount = (int)tweets["count"];
+    char* cursor = new char[32];
+    strcpy(cursor, ((string)tweets["cursor"]).c_str());
 
-        LOG((*it)["id_str"]);
+    tweets = tweets["tweets"];
 
-        for (json::iterator jt = tweet.begin(); jt != tweet.end(); ++jt) {
-            if(strstr(((string)((*jt)["type"])).c_str(), "video")) {
-                bitrate = 0;
+    while(totalCount > 0) {
+        json tweet, videoTweet, videoBitrates;
+        int bitrate;
+        char* mediaUrl = new char[255];
+        char filename[FILENAME_MAX];
+        for (json::iterator it = tweets.begin(); it != tweets.end(); ++it) {
+            tweet = (*it)["extended_entities"]["media"];
 
-                videoBitrates = (*jt)["video_info"]["variants"];
-                for (json::iterator kt = videoBitrates.begin(); kt != videoBitrates.end(); ++kt) {
-                    if((*kt)["bitrate"].is_number() && (int)((*kt)["bitrate"]) > bitrate) {
-                        bitrate = (int)((*kt)["bitrate"]);
-                        strcpy(mediaUrl, ((string)((*kt)["url"])).c_str());
+            for (json::iterator jt = tweet.begin(); jt != tweet.end(); ++jt) {
+                if(strstr(((string)((*jt)["type"])).c_str(), "video")) {
+                    bitrate = 0;
+
+                    videoBitrates = (*jt)["video_info"]["variants"];
+                    for (json::iterator kt = videoBitrates.begin(); kt != videoBitrates.end(); ++kt) {
+                        if((*kt)["bitrate"].is_number() && (int)((*kt)["bitrate"]) > bitrate) {
+                            bitrate = (int)((*kt)["bitrate"]);
+                            strcpy(mediaUrl, ((string)((*kt)["url"])).c_str());
+                        }
                     }
+                    reverse(mediaUrl, mediaUrl + strlen(mediaUrl));
+                    strcpy(filename, mediaUrl);
+                    reverse(mediaUrl, mediaUrl + strlen(mediaUrl));
+
+                    strcpy(filename, strstr(filename, "4"));
+                    strcpy(filename, ((string)filename).substr(0, ((string)filename).find("/", 0)).c_str());
+                    reverse(filename, filename + strlen(filename));
                 }
-                reverse(mediaUrl, mediaUrl + strlen(mediaUrl));
-                strcpy(filename, mediaUrl);
-                reverse(mediaUrl, mediaUrl + strlen(mediaUrl));
+                else if(!strstr(((string)((*jt)["media_url"])).c_str(), "video_thumb")) {
+                    strcpy(mediaUrl, ((string)((*jt)["media_url"])).c_str());
 
-                strcpy(filename, strstr(filename, "4"));
-                strcpy(filename, ((string)filename).substr(0, ((string)filename).find("/", 0)).c_str());
-                reverse(filename, filename + strlen(filename));
-            }
-            else if(!strstr(((string)((*jt)["media_url"])).c_str(), "video_thumb")) {
-                strcpy(mediaUrl, ((string)((*jt)["media_url"])).c_str());
+                    reverse(mediaUrl, mediaUrl + strlen(mediaUrl));
+                    strcpy(filename, mediaUrl);
+                    reverse(mediaUrl, mediaUrl + strlen(mediaUrl));
 
-                reverse(mediaUrl, mediaUrl + strlen(mediaUrl));
-                strcpy(filename, mediaUrl);
-                reverse(mediaUrl, mediaUrl + strlen(mediaUrl));
+                    strcpy(filename, ((string)filename).substr(0, ((string)filename).find("/", 0)).c_str());
+                    reverse(filename, filename + strlen(filename));
+                }
+                else {
+                    LOG("Skip thumbnail");
+                    continue;
+                }
 
-                strcpy(filename, ((string)filename).substr(0, ((string)filename).find("/", 0)).c_str());
-                reverse(filename, filename + strlen(filename));
-            }
-            else {
-                LOG("Skip thumbnail");
-                continue;
-            }
+                strcpy(filename, ((string)OUTPATH + "/" + (string)username + "/" + ((string)filename)).c_str());
 
-            strcpy(filename, ((string)OUTPATH + "/" + (string)username + "/" + ((string)filename)).c_str());
+                if(fileExists(filename)) {
+                    LOG("File exists, skipping");
+                    continue;
+                }
 
-            if(fileExists(filename)) {
-                LOG("File exists, skipping");
-                continue;
-            }
+                while(1) {
+                    this_thread::sleep_for(chrono::milliseconds(10));
 
-            while(1) {
-                this_thread::sleep_for(chrono::milliseconds(10));
-
-                if(ACTIVE_THREADS < THREADS) {
-                    LOG("Filename: " << filename);
-                    LOG("Download: " << mediaUrl);
-                    ACTIVE_THREADS++;
-                    tasks.push_back(async(dlThread, (string)mediaUrl, (string)filename));
-                    break;
+                    if(ACTIVE_THREADS < THREADS) {
+                        LOG("Filename: " << filename);
+                        LOG("Download: " << mediaUrl);
+                        ACTIVE_THREADS++;
+                        tasks.push_back(async(dlThread, (string)mediaUrl, (string)filename));
+                        break;
+                    }
                 }
             }
         }
+
+        tweets = getTweets(guestToken, (char*)userId, tweetsCount, (string)cursor);
+        totalCount = (int)tweets["count"];
+        strcpy(cursor, ((string)tweets["cursor"]).c_str());
+        tweets = tweets["tweets"];
     }
 
     USER_THREADS--;
