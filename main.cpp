@@ -7,6 +7,7 @@
 #include <future>
 #include <chrono>
 #include <fstream>
+#include <regex>
 
 #include "inc/getosname.h"
 #include "inc/json.hpp"
@@ -28,7 +29,8 @@ static char* OUTPATH = new char[255];
 static int THREADS = 1;
 static int ACTIVE_THREADS = 0;
 static int USER_THREADS = 0;
-
+static int RUNNING = 1;
+static int TWEETS_PER_CURSOR = 200;
 
 
 static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
@@ -93,9 +95,16 @@ char* twiAuth() {
 }
 
 void getLoad() {
-    while(1) {
+    while(RUNNING) {
         this_thread::sleep_for(chrono::milliseconds(500));
         LOG("Threads: " << ACTIVE_THREADS << "/" << THREADS);
+    }
+}
+
+void getActiveUsers() {
+    while(RUNNING) {
+        this_thread::sleep_for(chrono::milliseconds(2500));
+        LOG("User threads: " << USER_THREADS << "/" << THREADS);
     }
 }
 
@@ -142,16 +151,18 @@ json getTweets(char* guestToken, char* userId, int count, string sCursor = "") {
 
     int curCount = count;
     int useCount = curCount;
-    if(curCount > 200) {
-        useCount = 200;
-        curCount -= 200;
+    if(curCount > TWEETS_PER_CURSOR) {
+        useCount = TWEETS_PER_CURSOR;
+        curCount -= TWEETS_PER_CURSOR;
     }
     else {
         curCount = 0;
+        useCount -= 50;
     }
 
     if(strcmp(cursor, "") != 0) {
-        strcpy(cursor, ("&cursor=" + (string)cursor).c_str());
+        sCursor = regex_replace(sCursor, regex("\\+"), "%2B");
+        strcpy(cursor, ("&cursor=" + sCursor).c_str());
     }
 
     strcpy(twitterApi, (
@@ -282,23 +293,23 @@ void userThread(string sUsername) {
 
     tweets = tweets["tweets"];
 
-    while(totalCount > 0) {
+    while(totalCount >= 0) {
         json tweet, videoTweet, videoBitrates;
         int bitrate;
-        char* mediaUrl = new char[255];
+        char *mediaUrl = new char[255];
         char filename[FILENAME_MAX];
         for (json::iterator it = tweets.begin(); it != tweets.end(); ++it) {
             tweet = (*it)["extended_entities"]["media"];
 
             for (json::iterator jt = tweet.begin(); jt != tweet.end(); ++jt) {
-                if(strstr(((string)((*jt)["type"])).c_str(), "video")) {
+                if (strstr(((string) ((*jt)["type"])).c_str(), "video")) {
                     bitrate = 0;
 
                     videoBitrates = (*jt)["video_info"]["variants"];
                     for (json::iterator kt = videoBitrates.begin(); kt != videoBitrates.end(); ++kt) {
-                        if((*kt)["bitrate"].is_number() && (int)((*kt)["bitrate"]) > bitrate) {
-                            bitrate = (int)((*kt)["bitrate"]);
-                            strcpy(mediaUrl, ((string)((*kt)["url"])).c_str());
+                        if ((*kt)["bitrate"].is_number() && (int) ((*kt)["bitrate"]) > bitrate) {
+                            bitrate = (int) ((*kt)["bitrate"]);
+                            strcpy(mediaUrl, ((string) ((*kt)["url"])).c_str());
                         }
                     }
                     reverse(mediaUrl, mediaUrl + strlen(mediaUrl));
@@ -306,43 +317,45 @@ void userThread(string sUsername) {
                     reverse(mediaUrl, mediaUrl + strlen(mediaUrl));
 
                     strcpy(filename, strstr(filename, "4pm."));
-                    strcpy(filename, ((string)filename).substr(0, ((string)filename).find("/", 0)).c_str());
+                    strcpy(filename, ((string) filename).substr(0, ((string) filename).find("/", 0)).c_str());
                     reverse(filename, filename + strlen(filename));
-                }
-                else if(!strstr(((string)((*jt)["media_url"])).c_str(), "video_thumb")) {
-                    strcpy(mediaUrl, ((string)((*jt)["media_url"])).c_str());
+                } else if (!strstr(((string) ((*jt)["media_url"])).c_str(), "video_thumb")) {
+                    strcpy(mediaUrl, ((string) ((*jt)["media_url"])).c_str());
 
                     reverse(mediaUrl, mediaUrl + strlen(mediaUrl));
                     strcpy(filename, mediaUrl);
                     reverse(mediaUrl, mediaUrl + strlen(mediaUrl));
 
-                    strcpy(filename, ((string)filename).substr(0, ((string)filename).find("/", 0)).c_str());
+                    strcpy(filename, ((string) filename).substr(0, ((string) filename).find("/", 0)).c_str());
                     reverse(filename, filename + strlen(filename));
-                }
-                else {
+                } else {
                     LOG("Skip thumbnail");
                     continue;
                 }
 
-                strcpy(filename, ((string)OUTPATH + "/" + (string)username + "/" + ((string)filename)).c_str());
+                strcpy(filename, ((string) OUTPATH + "/" + (string) username + "/" + ((string) filename)).c_str());
 
-                if(fileExists(filename)) {
+                if (fileExists(filename)) {
                     LOG("File exists, skipping");
                     continue;
                 }
 
-                while(1) {
+                while (1) {
                     this_thread::sleep_for(chrono::milliseconds(10));
 
-                    if(ACTIVE_THREADS < THREADS) {
+                    if (ACTIVE_THREADS < THREADS) {
                         LOG("Filename: " << filename);
                         LOG("Download: " << mediaUrl);
                         ACTIVE_THREADS++;
-                        tasks.push_back(async(dlThread, (string)mediaUrl, (string)filename));
+                        tasks.push_back(async(dlThread, (string) mediaUrl, (string) filename));
                         break;
                     }
                 }
             }
+        }
+
+        if (totalCount == 0) {
+            break;
         }
 
         tweets = getTweets(guestToken, (char*)userId, totalCount, (string)cursor);
@@ -357,6 +370,7 @@ void userThread(string sUsername) {
 
 void mainThread() {
     auto load = async(getLoad);
+    auto usrs = async(getActiveUsers);
 
     if(strcmp(FRITTER, "")) {
         ifstream fritter(FRITTER);
@@ -371,6 +385,9 @@ void mainThread() {
             strcpy(username, ((string)((*it)["screen_name"])).c_str());
 
             while(1) {
+                this_thread::sleep_for(chrono::milliseconds(10));
+
+                LOG("Wait");
                 if(USER_THREADS < THREADS) {
                     LOG("Username: " << username);
                     USER_THREADS++;
@@ -383,8 +400,11 @@ void mainThread() {
         }
     }
     else {
+        USER_THREADS++;
         userThread((string)USER);
     }
+
+    RUNNING = 0;
 
     return;
 }
@@ -439,7 +459,9 @@ int main(int argc, char **argv) {
     thread main(mainThread);
     main.join();
 
-    LOG("End program. Press any key to exit.");
+//    while(RUNNING) this_thread::sleep_for(chrono::milliseconds(100));
+
+    ERR("End program. Press Enter to exit.");
     getchar();
 
     return 0;
