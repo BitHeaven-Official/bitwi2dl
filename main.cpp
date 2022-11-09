@@ -329,9 +329,13 @@ void userThread(string sUsername) {
 //                    this_thread::sleep_for(chrono::milliseconds(10));
 
                     if (ACTIVE_THREADS < THREADS) {
+                        ACTIVE_THREADS++;
+                        if(ACTIVE_THREADS > THREADS) {
+                            ACTIVE_THREADS--;
+                            continue;
+                        }
                         LOG("Filename: " << filename);
                         LOG("Download: " << mediaUrl);
-                        ACTIVE_THREADS++;
                         tasks.push_back(async(dlThread, (string)mediaUrl, (string)filename));
                         break;
                     }
