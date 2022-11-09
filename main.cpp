@@ -237,25 +237,16 @@ void none() {
 }
 
 void downloadFile(char* URL, char* filename) {
-    LOG("CURL start");
     CURL *curl;
     FILE *fp;
-    LOG("CURL init");
     curl = curl_easy_init();
-    LOG("if CURL");
     if (curl)
     {
-        LOG("Open file");
-        fp = fopen(filename, "wb");
         curl_easy_setopt(curl, CURLOPT_URL, URL);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
-        LOG("Set file");
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
-        LOG("CURL exec");
         curl_easy_perform(curl);
-        LOG("CURL clean");
         curl_easy_cleanup(curl);
-        LOG("Close file");
         fclose(fp);
     }
 }
@@ -270,7 +261,9 @@ void dlThread(string URL, string filename) {
     char* iURL = (char*)URL.c_str();
     downloadFile(iURL, iFilename);
     LOG("End thread");
+    ERR("Cur: " << ACTIVE_THREADS << "/" << THREADS);
     ACTIVE_THREADS--;
+    ERR("Min: " << ACTIVE_THREADS << "/" << THREADS);
 }
 
 void userThread(string sUsername) {
@@ -300,7 +293,7 @@ void userThread(string sUsername) {
 
     tweets = tweets["tweets"];
 
-    while(totalCount >= 0) {
+    while(totalCount > 0) {
         json tweet, videoTweet, videoBitrates;
         int bitrate;
         char *mediaUrl = new char[255];
@@ -359,10 +352,6 @@ void userThread(string sUsername) {
                     }
                 }
             }
-        }
-
-        if (totalCount == 0) {
-            break;
         }
 
         tweets = getTweets(guestToken, (char*)userId, totalCount, (string)cursor);
