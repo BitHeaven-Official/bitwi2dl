@@ -143,21 +143,11 @@ json getProfile(char* guestToken, char* username) {
     return out;
 }
 
-json getTweets(char* guestToken, char* userId, int count, string sCursor = "") {
+json getTweets(char* guestToken, char* userId, string sCursor = "") {
     char* twitterApi = new char[512];
     char* cursor = new char[32];
     strcpy(cursor, sCursor.c_str());
     LOG("Cursor: " << cursor);
-
-    int curCount = count;
-    int useCount = curCount;
-    if(curCount > TWEETS_PER_CURSOR) {
-        useCount = TWEETS_PER_CURSOR;
-        curCount -= TWEETS_PER_CURSOR;
-    }
-    else {
-        curCount = 0;
-    }
 
     if(strcmp(cursor, "") != 0) {
         sCursor = regex_replace(sCursor, regex("\\+"), "%2B");
@@ -166,7 +156,7 @@ json getTweets(char* guestToken, char* userId, int count, string sCursor = "") {
 
     strcpy(twitterApi, (
             "https://api.twitter.com/2/timeline/profile/" + (string)userId
-            + ".json?count=" + to_string(useCount)
+            + ".json?count=" + to_string(TWEETS_PER_CURSOR)
             + "&userId=" + (string)userId
             + (string)cursor
             ).c_str());
@@ -216,7 +206,6 @@ json getTweets(char* guestToken, char* userId, int count, string sCursor = "") {
     }
 
     out = out["globalObjects"];
-    out["count"] = curCount;
     out["cursor"] = (string)sCursor;
 
     return out;
@@ -276,28 +265,25 @@ void userThread(string sUsername) {
 
     string sUserId = profile["user_id"];
     char* userId = (char*)sUserId.c_str();
-    int tweetsCount = (int)profile["tweets"];
-
-    if(!tweetsCount) {
-        ERR("User " << username << " no have tweets!");
-        return;
-    }
 
     json tweets;
-    tweets = getTweets(guestToken, (char*)userId, tweetsCount);
-
-    int totalCount = (int)tweets["count"];
+    int tweetsExist = 1;
     char* cursor = new char[32];
-    strcpy(cursor, ((string)tweets["cursor"]).c_str());
+    strcpy(cursor, "");
 
-    tweets = tweets["tweets"];
-
-    while(totalCount > 0) {
+    while(tweetsExist) {
+        tweetsExist = 0;
         json tweet, videoTweet, videoBitrates;
         int bitrate;
         char *mediaUrl = new char[255];
         char filename[FILENAME_MAX];
+
+        tweets = getTweets(guestToken, (char*)userId, (string)cursor);
+        strcpy(cursor, ((string)tweets["cursor"]).c_str());
+        tweets = tweets["tweets"];
+
         for (json::iterator it = tweets.begin(); it != tweets.end(); ++it) {
+            tweetsExist = 1;
             tweet = (*it)["extended_entities"]["media"];
 
             for (json::iterator jt = tweet.begin(); jt != tweet.end(); ++jt) {
@@ -353,10 +339,9 @@ void userThread(string sUsername) {
             }
         }
 
-        tweets = getTweets(guestToken, (char*)userId, totalCount, (string)cursor);
-        totalCount = (int)tweets["count"];
-        strcpy(cursor, ((string)tweets["cursor"]).c_str());
-        tweets = tweets["tweets"];
+        if(!tweetsExist) {
+            break;
+        }
     }
 
     USER_THREADS--;
@@ -387,7 +372,7 @@ void mainThread() {
                     USER_THREADS++;
                     tasks.push_back(async(userThread, (string)username));
 
-                    this_thread::sleep_for(chrono::milliseconds(10000));
+                    this_thread::sleep_for(chrono::milliseconds(2500));
                     break;
                 }
             }
