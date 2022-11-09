@@ -367,7 +367,7 @@ void mainThread() {
             while(1) {
                 this_thread::sleep_for(chrono::milliseconds(10));
 
-                if(USER_THREADS < 1) {
+                if(USER_THREADS < THREADS) {
                     LOG("Username: " << username);
                     USER_THREADS++;
                     tasks.push_back(async(userThread, (string)username));
