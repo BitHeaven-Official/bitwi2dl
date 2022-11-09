@@ -242,6 +242,7 @@ void downloadFile(char* URL, char* filename) {
     curl = curl_easy_init();
     if (curl)
     {
+        fp = fopen(filename, "wb");
         curl_easy_setopt(curl, CURLOPT_URL, URL);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
@@ -339,13 +340,13 @@ void userThread(string sUsername) {
                 }
 
                 while (1) {
-                    this_thread::sleep_for(chrono::milliseconds(10));
+//                    this_thread::sleep_for(chrono::milliseconds(10));
 
                     if (ACTIVE_THREADS < THREADS) {
                         LOG("Filename: " << filename);
                         LOG("Download: " << mediaUrl);
                         ACTIVE_THREADS++;
-                        tasks.push_back(async(dlThread, (string) mediaUrl, (string) filename));
+                        tasks.push_back(async(dlThread, (string)mediaUrl, (string)filename));
                         break;
                     }
                 }
