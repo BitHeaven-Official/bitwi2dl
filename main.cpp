@@ -346,7 +346,9 @@ void userThread(string sUsername) {
                     if (ACTIVE_THREADS < THREADS) {
                         LOG("Filename: " << filename);
                         LOG("Download: " << mediaUrl);
+                        ERR("Cpl: " << ACTIVE_THREADS << "/" << THREADS);
                         ACTIVE_THREADS++;
+                        ERR("Plu: " << ACTIVE_THREADS << "/" << THREADS);
                         tasks.push_back(async(dlThread, (string) mediaUrl, (string) filename));
                         break;
                     }
