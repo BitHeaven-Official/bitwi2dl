@@ -237,17 +237,25 @@ void none() {
 }
 
 void downloadFile(char* URL, char* filename) {
+    LOG("CURL start");
     CURL *curl;
     FILE *fp;
+    LOG("CURL init");
     curl = curl_easy_init();
+    LOG("if CURL");
     if (curl)
     {
+        LOG("Open file");
         fp = fopen(filename, "wb");
         curl_easy_setopt(curl, CURLOPT_URL, URL);
         curl_easy_setopt(curl, CURLOPT_WRITEFUNCTION, NULL);
+        LOG("Set file");
         curl_easy_setopt(curl, CURLOPT_WRITEDATA, fp);
+        LOG("CURL exec");
         curl_easy_perform(curl);
+        LOG("CURL clean");
         curl_easy_cleanup(curl);
+        LOG("Close file");
         fclose(fp);
     }
 }
