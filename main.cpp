@@ -31,6 +31,7 @@ static int ACTIVE_THREADS = 0;
 static int USER_THREADS = 0;
 static int RUNNING = 1;
 static int TWEETS_PER_CURSOR = 200;
+static uint64_t LAST_END_THREAD = duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
 
 
 static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
@@ -98,6 +99,20 @@ void getLoad() {
     while(RUNNING) {
         this_thread::sleep_for(chrono::milliseconds(500));
         LOG("Threads: " << ACTIVE_THREADS << "/" << THREADS);
+    }
+}
+
+void fixLoad() {
+    int cur, last;
+    uint64_t time;
+    while(RUNNING) {
+        this_thread::sleep_for(chrono::milliseconds(50));
+        time = duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+        cur = ACTIVE_THREADS;
+        if(cur == last && cur == THREADS && time - LAST_END_THREAD > 120) {
+            ACTIVE_THREADS = 0;
+        }
+        last = ACTIVE_THREADS;
     }
 }
 
@@ -251,6 +266,7 @@ void dlThread(string URL, string filename) {
     char* iURL = (char*)URL.c_str();
     downloadFile(iURL, iFilename);
     LOG("End thread");
+    LAST_END_THREAD = duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
     ACTIVE_THREADS--;
 }
 
@@ -354,6 +370,7 @@ void userThread(string sUsername) {
 
 void mainThread() {
     auto load = async(getLoad);
+    auto fix = async(fixLoad);
     auto usrs = async(getActiveUsers);
 
     if(strcmp(FRITTER, "")) {
