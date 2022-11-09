@@ -261,9 +261,7 @@ void dlThread(string URL, string filename) {
     char* iURL = (char*)URL.c_str();
     downloadFile(iURL, iFilename);
     LOG("End thread");
-    ERR("Cur: " << ACTIVE_THREADS << "/" << THREADS);
     ACTIVE_THREADS--;
-    ERR("Min: " << ACTIVE_THREADS << "/" << THREADS);
 }
 
 void userThread(string sUsername) {
@@ -346,9 +344,7 @@ void userThread(string sUsername) {
                     if (ACTIVE_THREADS < THREADS) {
                         LOG("Filename: " << filename);
                         LOG("Download: " << mediaUrl);
-                        ERR("Cpl: " << ACTIVE_THREADS << "/" << THREADS);
                         ACTIVE_THREADS++;
-                        ERR("Plu: " << ACTIVE_THREADS << "/" << THREADS);
                         tasks.push_back(async(dlThread, (string) mediaUrl, (string) filename));
                         break;
                     }
@@ -385,7 +381,7 @@ void mainThread() {
             while(1) {
                 this_thread::sleep_for(chrono::milliseconds(10));
 
-                if(USER_THREADS < THREADS) {
+                if(USER_THREADS < 1) {
                     LOG("Username: " << username);
                     USER_THREADS++;
                     tasks.push_back(async(userThread, (string)username));
