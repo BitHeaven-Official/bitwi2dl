@@ -352,7 +352,7 @@ void userThread(string sUsername) {
                 }
 
                 while (1) {
-                    this_thread::sleep_for(chrono::milliseconds(10));
+                    this_thread::sleep_for(chrono::milliseconds(500));
 
                     if (ACTIVE_THREADS < THREADS) {
                         ACTIVE_THREADS++;
