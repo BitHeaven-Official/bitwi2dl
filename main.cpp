@@ -32,6 +32,7 @@ static int USER_THREADS = 0;
 static int RUNNING = 1;
 static int TWEETS_PER_CURSOR = 200;
 static uint64_t LAST_END_THREAD = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
+vector<future<void>> TASKS;
 
 
 static size_t WriteCallback(void *contents, size_t size, size_t nmemb, void *userp)
@@ -113,6 +114,7 @@ void fixLoad() {
             ERR("Threads full long time. Cleaning...");
             LAST_END_THREAD = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             this_thread::sleep_for(chrono::milliseconds(5000));
+            TASKS = vector<future<void>>();
             ACTIVE_THREADS = 0;
         }
         last = ACTIVE_THREADS;
@@ -275,7 +277,6 @@ void dlThread(string URL, string filename) {
 
 void userThread(string sUsername) {
     char* guestToken = twiAuth();
-    vector<future<void>> tasks;
 
     char* username = (char*)sUsername.c_str();
     json profile = getProfile(guestToken, username);
@@ -363,7 +364,7 @@ void userThread(string sUsername) {
                         }
                         LOG("Filename: " << filename);
                         LOG("Download: " << mediaUrl);
-                        tasks.push_back(async(dlThread, (string)mediaUrl, (string)filename));
+                        TASKS.push_back(async(dlThread, (string)mediaUrl, (string)filename));
                         break;
                     }
                 }
