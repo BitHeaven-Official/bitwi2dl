@@ -109,8 +109,9 @@ void fixLoad() {
         this_thread::sleep_for(chrono::milliseconds(50));
         time = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
         cur = ACTIVE_THREADS;
-        if(cur == last && cur == THREADS && time - LAST_END_THREAD > 120) {
+        if(cur == last && time - LAST_END_THREAD > 120) {
             ERR("Threads full long time. Cleaning...");
+            this_thread::sleep_for(chrono::milliseconds(5000));
             ACTIVE_THREADS = 0;
         }
         last = ACTIVE_THREADS;
@@ -286,6 +287,8 @@ void userThread(string sUsername) {
     json tweets;
     int tweetsExist = 1;
     char* cursor = new char[32];
+    FILE *mediaFile;
+    size_t fileSize;
     strcpy(cursor, "");
 
     while(tweetsExist) {
@@ -338,8 +341,14 @@ void userThread(string sUsername) {
                 strcpy(filename, ((string) OUTPATH + "/" + (string) username + "/" + ((string) filename)).c_str());
 
                 if (fileExists(filename)) {
-                    LOG("File exists, skipping");
-                    continue;
+                    mediaFile = fopen(filename, "r");
+                    fseek(mediaFile, 0, SEEK_END);
+                    fileSize = ftell(mediaFile);
+                    fclose(mediaFile);
+                    if(fileSize) {
+                        LOG("File exists, skipping");
+                        continue;
+                    }
                 }
 
                 while (1) {
