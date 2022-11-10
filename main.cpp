@@ -111,6 +111,7 @@ void fixLoad() {
         cur = ACTIVE_THREADS;
         if(cur == last && time - LAST_END_THREAD > 120) {
             ERR("Threads full long time. Cleaning...");
+            LAST_END_THREAD = chrono::duration_cast<chrono::seconds>(chrono::system_clock::now().time_since_epoch()).count();
             this_thread::sleep_for(chrono::milliseconds(5000));
             ACTIVE_THREADS = 0;
         }
